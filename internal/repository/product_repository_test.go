@@ -12,7 +12,7 @@ import (
 func TestCreateProduct(t *testing.T) {
 	repository := newRepository(t)
 
-	id, err := repository.CreateProduct(model.Product{Name: "Camiseta", Price: 30.99})
+	id, err := repository.CreateProduct(model.Product{Name: "Camiseta", Price: 30.99, Stock: 12})
 	require.NoError(t, err)
 	assert.NotZero(t, id, "o banco deveria ter gerado um id")
 
@@ -21,6 +21,19 @@ func TestCreateProduct(t *testing.T) {
 
 	assert.Equal(t, "Camiseta", saved.Name)
 	assert.Equal(t, 30.99, saved.Price)
+	assert.Equal(t, 12, saved.Stock)
+}
+
+func TestCreateProductSemStockGravaZero(t *testing.T) {
+	repository := newRepository(t)
+
+	id, err := repository.CreateProduct(model.Product{Name: "Camiseta", Price: 30.99})
+	require.NoError(t, err)
+
+	var saved model.Product
+	require.NoError(t, testConnection.First(&saved, id).Error)
+
+	assert.Zero(t, saved.Stock, "sem stock informado o produto deve ficar zerado")
 }
 
 func TestGetProductsQuandoVazio(t *testing.T) {
@@ -36,8 +49,8 @@ func TestGetProductsRetornaOsProdutosCriados(t *testing.T) {
 	repository := newRepository(t)
 
 	criados := []model.Product{
-		{Name: "Camiseta", Price: 30.99},
-		{Name: "Calca Jeans", Price: 89.99},
+		{Name: "Camiseta", Price: 30.99, Stock: 12},
+		{Name: "Calca Jeans", Price: 89.99, Stock: 3},
 	}
 
 	for _, product := range criados {
@@ -52,6 +65,7 @@ func TestGetProductsRetornaOsProdutosCriados(t *testing.T) {
 	for i, esperado := range criados {
 		assert.Equal(t, esperado.Name, products[i].Name)
 		assert.Equal(t, esperado.Price, products[i].Price)
+		assert.Equal(t, esperado.Stock, products[i].Stock)
 	}
 }
 
