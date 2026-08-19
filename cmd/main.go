@@ -1,18 +1,12 @@
 package main
 
 import (
-	"go-api/internal/controller"
 	"go-api/internal/db"
 	"go-api/internal/model"
-	"go-api/internal/repository"
-	"go-api/internal/usecase"
-
-	"github.com/gin-gonic/gin"
+	"go-api/internal/router"
 )
 
 func main() {
-	server := gin.Default()
-
 	if err := db.EnsureDatabase(); err != nil {
 		panic(err)
 	}
@@ -26,21 +20,7 @@ func main() {
 		panic(err)
 	}
 
-	ProductRepository := repository.NewProductRepository(dbConnection)
-
-	ProductUsecase := usecase.NewProductUsecase(ProductRepository)
-
-	ProductController := controller.NewProductController(ProductUsecase)
-
-	server.GET("/ping", func(ctx *gin.Context) {
-		ctx.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-
-	server.GET("/products", ProductController.GetProducts)
-	server.GET("/products/:id", ProductController.GetProductByID)
-	server.POST("/products", ProductController.CreateProduct)
+	server := router.New(dbConnection)
 
 	server.Run(":8000")
 }

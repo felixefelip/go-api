@@ -1,4 +1,4 @@
-package controller
+package controller_test
 
 import (
 	"fmt"
@@ -9,9 +9,8 @@ import (
 	"testing"
 
 	"go-api/internal/db"
-	"go-api/internal/repository"
+	"go-api/internal/router"
 	"go-api/internal/testdb"
-	"go-api/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -34,26 +33,20 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// newServer monta o stack real (controller -> usecase -> repository -> Postgres)
-// sobre uma tabela product vazia, com as mesmas rotas registradas no main.go.
+// newServer monta o servidor com as rotas reais da aplicacao (as mesmas que o
+// main.go registra, via router.Register) sobre uma tabela product vazia.
 func newServer(t *testing.T) *gin.Engine {
 	t.Helper()
 
 	testdb.Reset(t, testConnection)
 
-	productRepository := repository.NewProductRepository(testConnection)
-	productUsecase := usecase.NewProductUsecase(productRepository)
-	productController := NewProductController(productUsecase)
-
 	server := gin.New()
-	server.GET("/products", productController.GetProducts)
-	server.GET("/products/:id", productController.GetProductByID)
-	server.POST("/products", productController.CreateProduct)
+	router.Register(server, testConnection)
 
 	return server
 }
 
-// newServerComBancoIndisponivel monta o mesmo stack sobre uma conexao propria
+// newServerComBancoIndisponivel monta o mesmo servidor sobre uma conexao propria
 // que ja foi fechada, para exercitar o caminho de erro dos handlers. A conexao
 // compartilhada pelos demais testes nao e afetada.
 func newServerComBancoIndisponivel(t *testing.T) *gin.Engine {
@@ -66,14 +59,8 @@ func newServerComBancoIndisponivel(t *testing.T) *gin.Engine {
 	require.NoError(t, err)
 	require.NoError(t, sqlDB.Close())
 
-	productRepository := repository.NewProductRepository(connection)
-	productUsecase := usecase.NewProductUsecase(productRepository)
-	productController := NewProductController(productUsecase)
-
 	server := gin.New()
-	server.GET("/products", productController.GetProducts)
-	server.GET("/products/:id", productController.GetProductByID)
-	server.POST("/products", productController.CreateProduct)
+	router.Register(server, connection)
 
 	return server
 }
