@@ -3,6 +3,7 @@ package main
 import (
 	"go-api/controller"
 	"go-api/db"
+	"go-api/model"
 	"go-api/repository"
 	"go-api/usecase"
 
@@ -14,6 +15,10 @@ func main() {
 
 	dbConnection, err := db.ConnectDB()
 	if err != nil {
+		panic(err)
+	}
+
+	if err := dbConnection.AutoMigrate(&model.Product{}); err != nil {
 		panic(err)
 	}
 
