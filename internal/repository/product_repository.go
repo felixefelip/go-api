@@ -27,6 +27,17 @@ func (pr *ProductRepository) GetProducts() ([]model.Product, error) {
 	return productList, nil
 }
 
+func (pr *ProductRepository) GetProductByID(id int) (model.Product, error) {
+	var product model.Product
+
+	err := pr.connection.First(&product, id).Error
+	if err != nil {
+		return model.Product{}, err
+	}
+
+	return product, nil
+}
+
 func (pr *ProductRepository) CreateProduct(product model.Product) (int, error) {
 	err := pr.connection.Create(&product).Error
 	if err != nil {

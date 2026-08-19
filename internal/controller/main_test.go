@@ -47,7 +47,8 @@ func newServer(t *testing.T) *gin.Engine {
 
 	server := gin.New()
 	server.GET("/products", productController.GetProducts)
-	server.POST("/product", productController.CreateProduct)
+	server.GET("/products/:id", productController.GetProductByID)
+	server.POST("/products", productController.CreateProduct)
 
 	return server
 }
@@ -71,7 +72,8 @@ func newServerComBancoIndisponivel(t *testing.T) *gin.Engine {
 
 	server := gin.New()
 	server.GET("/products", productController.GetProducts)
-	server.POST("/product", productController.CreateProduct)
+	server.GET("/products/:id", productController.GetProductByID)
+	server.POST("/products", productController.CreateProduct)
 
 	return server
 }

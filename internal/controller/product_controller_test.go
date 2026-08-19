@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 func TestCreateProductRetorna201ComOProdutoCriado(t *testing.T) {
 	server := newServer(t)
 
-	response := post(t, server, "/product", `{"name":"Camiseta","price":30.99,"stock":12}`)
+	response := post(t, server, "/products", `{"name":"Camiseta","price":30.99,"stock":12}`)
 
 	require.Equal(t, http.StatusCreated, response.Code)
 
@@ -30,7 +31,7 @@ func TestCreateProductRetorna201ComOProdutoCriado(t *testing.T) {
 func TestCreateProductSemStockRetornaZero(t *testing.T) {
 	server := newServer(t)
 
-	response := post(t, server, "/product", `{"name":"Camiseta","price":30.99}`)
+	response := post(t, server, "/products", `{"name":"Camiseta","price":30.99}`)
 
 	require.Equal(t, http.StatusCreated, response.Code)
 
@@ -43,7 +44,7 @@ func TestCreateProductSemStockRetornaZero(t *testing.T) {
 func TestCreateProductPersisteNoBanco(t *testing.T) {
 	server := newServer(t)
 
-	response := post(t, server, "/product", `{"name":"Camiseta","price":30.99,"stock":12}`)
+	response := post(t, server, "/products", `{"name":"Camiseta","price":30.99,"stock":12}`)
 	require.Equal(t, http.StatusCreated, response.Code)
 
 	var salvos []model.Product
@@ -58,7 +59,7 @@ func TestCreateProductPersisteNoBanco(t *testing.T) {
 func TestCreateProductComJSONInvalidoRetorna400(t *testing.T) {
 	server := newServer(t)
 
-	response := post(t, server, "/product", `{"name":`)
+	response := post(t, server, "/products", `{"name":`)
 
 	assert.Equal(t, http.StatusBadRequest, response.Code)
 
@@ -70,7 +71,7 @@ func TestCreateProductComJSONInvalidoRetorna400(t *testing.T) {
 func TestCreateProductComPrecoDeTipoErradoRetorna400(t *testing.T) {
 	server := newServer(t)
 
-	response := post(t, server, "/product", `{"name":"Camiseta","price":"muito caro"}`)
+	response := post(t, server, "/products", `{"name":"Camiseta","price":"muito caro"}`)
 
 	assert.Equal(t, http.StatusBadRequest, response.Code)
 }
@@ -78,7 +79,7 @@ func TestCreateProductComPrecoDeTipoErradoRetorna400(t *testing.T) {
 func TestCreateProductComStockDeTipoErradoRetorna400(t *testing.T) {
 	server := newServer(t)
 
-	response := post(t, server, "/product", `{"name":"Camiseta","price":30.99,"stock":"muitos"}`)
+	response := post(t, server, "/products", `{"name":"Camiseta","price":30.99,"stock":"muitos"}`)
 
 	assert.Equal(t, http.StatusBadRequest, response.Code)
 }
@@ -86,8 +87,8 @@ func TestCreateProductComStockDeTipoErradoRetorna400(t *testing.T) {
 func TestGetProductsRetorna200ComOsProdutos(t *testing.T) {
 	server := newServer(t)
 
-	require.Equal(t, http.StatusCreated, post(t, server, "/product", `{"name":"Camiseta","price":30.99,"stock":12}`).Code)
-	require.Equal(t, http.StatusCreated, post(t, server, "/product", `{"name":"Calca Jeans","price":89.99,"stock":3}`).Code)
+	require.Equal(t, http.StatusCreated, post(t, server, "/products", `{"name":"Camiseta","price":30.99,"stock":12}`).Code)
+	require.Equal(t, http.StatusCreated, post(t, server, "/products", `{"name":"Calca Jeans","price":89.99,"stock":3}`).Code)
 
 	response := get(t, server, "/products")
 
@@ -114,10 +115,6 @@ func TestGetProductsQuandoNaoHaProdutos(t *testing.T) {
 	assert.JSONEq(t, `[]`, response.Body.String())
 }
 
-// TestGetProductsQuandoOBancoFalhaRetorna500 cobre o caminho de erro do handler:
-// a resposta precisa ser 500 e ter um corpo JSON unico. Antes do `return` na
-// linha do erro, o handler seguia adiante e escrevia um segundo corpo, gerando
-// um payload concatenado e impossivel de parsear.
 func TestGetProductsQuandoOBancoFalhaRetorna500(t *testing.T) {
 	server := newServerComBancoIndisponivel(t)
 
@@ -128,4 +125,50 @@ func TestGetProductsQuandoOBancoFalhaRetorna500(t *testing.T) {
 	var corpo any
 	assert.NoError(t, json.Unmarshal(response.Body.Bytes(), &corpo),
 		"o corpo precisa ser um JSON unico e valido, nao dois concatenados")
+}
+
+func TestGetProductByIDRetorna200ComOProduto(t *testing.T) {
+	server := newServer(t)
+
+	criado := post(t, server, "/products", `{"name":"Camiseta","price":30.99,"stock":12}`)
+	require.Equal(t, http.StatusCreated, criado.Code)
+
+	var esperado model.Product
+	require.NoError(t, json.Unmarshal(criado.Body.Bytes(), &esperado))
+
+	response := get(t, server, fmt.Sprintf("/products/%d", esperado.ID))
+
+	require.Equal(t, http.StatusOK, response.Code)
+
+	var product model.Product
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &product))
+
+	assert.Equal(t, esperado.ID, product.ID)
+	assert.Equal(t, "Camiseta", product.Name)
+	assert.Equal(t, 30.99, product.Price)
+	assert.Equal(t, 12, product.Stock)
+}
+
+func TestGetProductByIDQuandoNaoExisteRetorna404(t *testing.T) {
+	server := newServer(t)
+
+	response := get(t, server, "/products/404")
+
+	require.Equal(t, http.StatusNotFound, response.Code)
+
+	var corpo map[string]string
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &corpo))
+	assert.NotEmpty(t, corpo["message"])
+}
+
+func TestGetProductByIDComIDNaoNumericoRetorna400(t *testing.T) {
+	server := newServer(t)
+
+	response := get(t, server, "/products/abc")
+
+	require.Equal(t, http.StatusBadRequest, response.Code)
+
+	var corpo map[string]string
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &corpo))
+	assert.NotEmpty(t, corpo["message"])
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestCreateProduct(t *testing.T) {
@@ -76,4 +77,28 @@ func TestIsolamentoEntreTestes(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Empty(t, products, "estado vazou de outro teste")
+}
+
+func TestGetProductByIDRetornaOProduto(t *testing.T) {
+	repository := newRepository(t)
+
+	id, err := repository.CreateProduct(model.Product{Name: "Camiseta", Price: 30.99, Stock: 12})
+	require.NoError(t, err)
+
+	product, err := repository.GetProductByID(id)
+
+	require.NoError(t, err)
+	assert.Equal(t, id, product.ID)
+	assert.Equal(t, "Camiseta", product.Name)
+	assert.Equal(t, 30.99, product.Price)
+	assert.Equal(t, 12, product.Stock)
+}
+
+func TestGetProductByIDQuandoNaoExisteRetornaErrRecordNotFound(t *testing.T) {
+	repository := newRepository(t)
+
+	_, err := repository.GetProductByID(404)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
 }
