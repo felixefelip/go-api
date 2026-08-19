@@ -1,100 +1,35 @@
 package repository
 
 import (
-	"fmt"
-	"os"
 	"testing"
 
-	"go-api/db"
 	"go-api/model"
 
-	"gorm.io/gorm"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-var testConnection *gorm.DB
-
-// TestMain prepara o banco do ambiente de teste uma unica vez para todo o pacote.
-func TestMain(m *testing.M) {
-	if os.Getenv("GO_ENV") == "" {
-		os.Setenv("GO_ENV", "test")
-	}
-
-	// Trava de seguranca: os testes truncam tabelas, entao so podem rodar
-	// contra o banco de teste.
-	if db.Env() != "test" {
-		fmt.Fprintf(os.Stderr, "recusando rodar testes com GO_ENV=%q; use GO_ENV=test\n", db.Env())
-		os.Exit(1)
-	}
-
-	if err := db.EnsureDatabase(); err != nil {
-		fmt.Fprintln(os.Stderr, "erro criando banco de teste:", err)
-		os.Exit(1)
-	}
-
-	connection, err := db.ConnectDB()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "erro conectando no banco de teste:", err)
-		os.Exit(1)
-	}
-
-	if err := connection.AutoMigrate(&model.Product{}); err != nil {
-		fmt.Fprintln(os.Stderr, "erro migrando banco de teste:", err)
-		os.Exit(1)
-	}
-
-	testConnection = connection
-
-	os.Exit(m.Run())
-}
-
-// newRepository devolve um repositorio sobre uma tabela product vazia.
-func newRepository(t *testing.T) ProductRepository {
-	t.Helper()
-
-	if err := testConnection.Exec("TRUNCATE TABLE product RESTART IDENTITY CASCADE").Error; err != nil {
-		t.Fatalf("limpando product: %v", err)
-	}
-
-	return NewProductRepository(testConnection)
-}
 
 func TestCreateProduct(t *testing.T) {
 	repository := newRepository(t)
 
 	id, err := repository.CreateProduct(model.Product{Name: "Camiseta", Price: 30.99})
-	if err != nil {
-		t.Fatalf("CreateProduct: %v", err)
-	}
-
-	if id == 0 {
-		t.Error("esperava um id gerado pelo banco, veio 0")
-	}
+	require.NoError(t, err)
+	assert.NotZero(t, id, "o banco deveria ter gerado um id")
 
 	var saved model.Product
-	if err := testConnection.First(&saved, id).Error; err != nil {
-		t.Fatalf("relendo o produto salvo: %v", err)
-	}
+	require.NoError(t, testConnection.First(&saved, id).Error)
 
-	if saved.Name != "Camiseta" {
-		t.Errorf("Name = %q, esperado %q", saved.Name, "Camiseta")
-	}
-
-	if saved.Price != 30.99 {
-		t.Errorf("Price = %v, esperado %v", saved.Price, 30.99)
-	}
+	assert.Equal(t, "Camiseta", saved.Name)
+	assert.Equal(t, 30.99, saved.Price)
 }
 
 func TestGetProductsQuandoVazio(t *testing.T) {
 	repository := newRepository(t)
 
 	products, err := repository.GetProducts()
-	if err != nil {
-		t.Fatalf("GetProducts: %v", err)
-	}
 
-	if len(products) != 0 {
-		t.Errorf("esperava lista vazia, veio %d produto(s)", len(products))
-	}
+	require.NoError(t, err)
+	assert.Empty(t, products)
 }
 
 func TestGetProductsRetornaOsProdutosCriados(t *testing.T) {
@@ -106,42 +41,25 @@ func TestGetProductsRetornaOsProdutosCriados(t *testing.T) {
 	}
 
 	for _, product := range criados {
-		if _, err := repository.CreateProduct(product); err != nil {
-			t.Fatalf("CreateProduct(%q): %v", product.Name, err)
-		}
+		_, err := repository.CreateProduct(product)
+		require.NoError(t, err)
 	}
 
 	products, err := repository.GetProducts()
-	if err != nil {
-		t.Fatalf("GetProducts: %v", err)
-	}
-
-	if len(products) != len(criados) {
-		t.Fatalf("esperava %d produtos, veio %d", len(criados), len(products))
-	}
+	require.NoError(t, err)
+	require.Len(t, products, len(criados))
 
 	for i, esperado := range criados {
-		if products[i].Name != esperado.Name {
-			t.Errorf("produto %d: Name = %q, esperado %q", i, products[i].Name, esperado.Name)
-		}
-
-		if products[i].Price != esperado.Price {
-			t.Errorf("produto %d: Price = %v, esperado %v", i, products[i].Price, esperado.Price)
-		}
+		assert.Equal(t, esperado.Name, products[i].Name)
+		assert.Equal(t, esperado.Price, products[i].Price)
 	}
 }
 
-// TestIsolamentoEntreTestes garante que a limpeza de estado esta funcionando:
-// o produto criado no teste anterior nao pode vazar para este.
 func TestIsolamentoEntreTestes(t *testing.T) {
 	repository := newRepository(t)
 
 	products, err := repository.GetProducts()
-	if err != nil {
-		t.Fatalf("GetProducts: %v", err)
-	}
 
-	if len(products) != 0 {
-		t.Errorf("estado vazou de outro teste: %d produto(s) na tabela", len(products))
-	}
+	require.NoError(t, err)
+	assert.Empty(t, products, "estado vazou de outro teste")
 }
