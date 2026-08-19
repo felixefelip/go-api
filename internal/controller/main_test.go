@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"go-api/db"
+	"go-api/internal/db"
+	"go-api/internal/repository"
 	"go-api/internal/testdb"
-	"go-api/repository"
-	"go-api/usecase"
+	"go-api/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"

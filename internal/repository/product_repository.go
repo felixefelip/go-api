@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"go-api/model"
+	"go-api/internal/model"
 
 	"gorm.io/gorm"
 )

@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"go-api/db"
-	"go-api/model"
+	"go-api/internal/db"
+	"go-api/internal/model"
 
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"

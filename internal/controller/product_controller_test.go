@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"go-api/model"
+	"go-api/internal/model"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
